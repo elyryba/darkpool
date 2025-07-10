@@ -1,0 +1,287 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  BUILD_TYPE: Release
+  DEBIAN_FRONTEND: noninteractive
+
+jobs:
+  build-and-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-20.04]
+        compiler: [gcc-11, gcc-12, clang-14]
+        exclude:
+          - os: ubuntu-20.04
+            compiler: gcc-12
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/vcpkg
+          ~/vcpkg
+          build/_deps
+        key: ${{ runner.os }}-${{ matrix.compiler }}-deps-${{ hashFiles('**/CMakeLists.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.compiler }}-deps-
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          ninja-build \
+          libtbb-dev \
+          libnuma-dev \
+          libboost-all-dev \
+          libyaml-cpp-dev \
+          libzmq3-dev \
+          libwebsocketpp-dev \
+          libgtest-dev \
+          libbenchmark-dev \
+          libprotobuf-dev \
+          protobuf-compiler \
+          pkg-config \
+          ccache
+
+    - name: Install compiler
+      run: |
+        if [[ "${{ matrix.compiler }}" == "gcc-11" ]]; then
+          sudo apt-get install -y gcc-11 g++-11
+          echo "CC=gcc-11" >> $GITHUB_ENV
+          echo "CXX=g++-11" >> $GITHUB_ENV
+        elif [[ "${{ matrix.compiler }}" == "gcc-12" ]]; then
+          sudo apt-get install -y gcc-12 g++-12
+          echo "CC=gcc-12" >> $GITHUB_ENV
+          echo "CXX=g++-12" >> $GITHUB_ENV
+        elif [[ "${{ matrix.compiler }}" == "clang-14" ]]; then
+          sudo apt-get install -y clang-14
+          echo "CC=clang-14" >> $GITHUB_ENV
+          echo "CXX=clang++-14" >> $GITHUB_ENV
+        fi
+
+    - name: Install prometheus-cpp
+      run: |
+        git clone https://github.com/jupp0r/prometheus-cpp.git
+        cd prometheus-cpp
+        git submodule update --init
+        mkdir build && cd build
+        cmake .. -DBUILD_SHARED_LIBS=ON -DENABLE_TESTING=OFF
+        make -j$(nproc)
+        sudo make install
+        sudo ldconfig
+
+    - name: Install ONNX Runtime
+      run: |
+        wget https://github.com/microsoft/onnxruntime/releases/download/v1.16.3/onnxruntime-linux-x64-1.16.3.tgz
+        tar -xzf onnxruntime-linux-x64-1.16.3.tgz
+        sudo cp -r onnxruntime-linux-x64-1.16.3/include/* /usr/local/include/
+        sudo cp -r onnxruntime-linux-x64-1.16.3/lib/* /usr/local/lib/
+        sudo ldconfig
+
+    - name: Configure CMake
+      run: |
+        cmake -B build \
+          -G Ninja \
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+          -DBUILD_TESTING=ON \
+          -DBUILD_BENCHMARKS=ON \
+          -DENABLE_NATIVE_ARCH=OFF \
+          -DENABLE_LTO=ON \
+          -DENABLE_ONNX=ON
+
+    - name: Build
+      run: cmake --build build --config ${{ env.BUILD_TYPE }} -j$(nproc)
+
+    - name: Test
+      working-directory: build
+      run: |
+        ctest -C ${{ env.BUILD_TYPE }} --output-on-failure --timeout 300 -j$(nproc)
+
+    - name: Run benchmarks (smoke test)
+      working-directory: build
+      run: |
+        ./benchmarks/benchmark_latency --benchmark_min_time=0.1
+        ./benchmarks/benchmark_throughput --benchmark_min_time=0.1
+        ./benchmarks/benchmark_ml_inference --benchmark_min_time=0.1
+        ./benchmarks/benchmark_protocol_parsing --benchmark_min_time=0.1
+
+    - name: Check performance targets
+      working-directory: build
+      run: |
+        # Run latency benchmark and check <500ns target
+        ./benchmarks/benchmark_latency --benchmark_filter="BM_EndToEndLatency" --benchmark_format=json > latency_results.json
+        python3 ../scripts/check_performance.py latency_results.json --max-latency-ns 500
+        
+        # Run throughput benchmark and check 20M msgs/sec target
+        ./benchmarks/benchmark_throughput --benchmark_filter="BM_SingleThreadThroughput" --benchmark_format=json > throughput_results.json
+        python3 ../scripts/check_performance.py throughput_results.json --min-throughput 20000000
+
+  code-quality:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cppcheck clang-tidy-14 clang-format-14
+
+    - name: Run clang-format
+      run: |
+        find . -name "*.cpp" -o -name "*.hpp" -o -name "*.h" | xargs clang-format-14 --dry-run --Werror
+
+    - name: Run cppcheck
+      run: |
+        cppcheck --enable=all --error-exitcode=1 --suppress=missingInclude \
+          --suppress=unusedFunction --suppress=unmatchedSuppression \
+          -I include/ src/
+
+    - name: Run clang-tidy
+      run: |
+        cmake -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+        find src -name "*.cpp" | xargs clang-tidy-14 -p build/
+
+  sanitizers:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        sanitizer: [address, thread, undefined]
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          ninja-build \
+          gcc-12 \
+          g++-12 \
+          libtbb-dev \
+          libnuma-dev \
+          libboost-all-dev \
+          libyaml-cpp-dev \
+          libzmq3-dev \
+          libwebsocketpp-dev \
+          libgtest-dev \
+          libbenchmark-dev
+
+    - name: Install prometheus-cpp
+      run: |
+        git clone https://github.com/jupp0r/prometheus-cpp.git
+        cd prometheus-cpp
+        git submodule update --init
+        mkdir build && cd build
+        cmake .. -DBUILD_SHARED_LIBS=ON -DENABLE_TESTING=OFF
+        make -j$(nproc)
+        sudo make install
+        sudo ldconfig
+
+    - name: Configure with sanitizer
+      run: |
+        cmake -B build \
+          -G Ninja \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_CXX_COMPILER=g++-12 \
+          -DBUILD_TESTING=ON \
+          -DENABLE_SANITIZERS=ON \
+          -DCMAKE_CXX_FLAGS="-fsanitize=${{ matrix.sanitizer }} -fno-omit-frame-pointer"
+
+    - name: Build
+      run: cmake --build build -j$(nproc)
+
+    - name: Test with sanitizer
+      working-directory: build
+      run: |
+        export ASAN_OPTIONS=detect_leaks=0
+        export TSAN_OPTIONS=suppressions=../test/tsan_suppressions.txt
+        export UBSAN_OPTIONS=print_stacktrace=1
+        ctest --output-on-failure --timeout 600
+
+  performance-regression:
+    runs-on: ubuntu-22.04
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Checkout base branch
+      run: |
+        git checkout ${{ github.base_ref }}
+        git checkout -
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          ninja-build \
+          gcc-12 \
+          g++-12 \
+          libtbb-dev \
+          libnuma-dev \
+          libboost-all-dev \
+          libyaml-cpp-dev \
+          libzmq3-dev \
+          libwebsocketpp-dev \
+          libbenchmark-dev
+
+    - name: Build base branch
+      run: |
+        git checkout ${{ github.base_ref }}
+        cmake -B build-base -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_BENCHMARKS=ON
+        cmake --build build-base --target benchmark_latency benchmark_throughput
+
+    - name: Build PR branch
+      run: |
+        git checkout -
+        cmake -B build-pr -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_BENCHMARKS=ON
+        cmake --build build-pr --target benchmark_latency benchmark_throughput
+
+    - name: Run performance comparison
+      run: |
+        # Run benchmarks on base branch
+        ./build-base/benchmarks/benchmark_latency --benchmark_format=json > base_latency.json
+        ./build-base/benchmarks/benchmark_throughput --benchmark_format=json > base_throughput.json
+        
+        # Run benchmarks on PR branch
+        ./build-pr/benchmarks/benchmark_latency --benchmark_format=json > pr_latency.json
+        ./build-pr/benchmarks/benchmark_throughput --benchmark_format=json > pr_throughput.json
+        
+        # Compare results
+        python3 scripts/compare_benchmarks.py base_latency.json pr_latency.json --threshold 5
+        python3 scripts/compare_benchmarks.py base_throughput.json pr_throughput.json --threshold 5
+
+    - name: Comment PR with results
+      uses: actions/github-script@v6
+      if: always()
+      with:
+        script: |
+          const fs = require('fs');
+          const comparison = fs.readFileSync('benchmark_comparison.md', 'utf8');
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comparison
+          });
