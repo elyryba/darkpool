@@ -7,23 +7,22 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Options
-option(ENABLE_TESTS "Enable unit tests" ON)
-option(ENABLE_BENCHMARKS "Enable benchmarks" ON)
+option(BUILD_TESTING "Enable unit tests" ON)
+option(BUILD_BENCHMARKS "Enable benchmarks" ON)
 option(ENABLE_SANITIZERS "Enable address and thread sanitizers" OFF)
-option(ENABLE_NATIVE_ARCH "Enable -march=native" OFF)
+option(ENABLE_NATIVE_ARCH "Enable -march=native" ON)
 option(ENABLE_LTO "Enable link-time optimization" ON)
+option(ENABLE_ONNX "Enable ONNX Runtime support" ON)
 option(ENABLE_CUDA "Enable CUDA support" OFF)
-option(ENABLE_MKL "Enable Intel MKL" OFF)
 
 # Compiler flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffast-math -fno-finite-math-only")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffast-math -funroll-loops -finline-functions")
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -DNDEBUG")
     if(ENABLE_NATIVE_ARCH)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -mtune=native")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -mtune=native -mavx2 -mfma")
     endif()
     if(ENABLE_LTO)
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
@@ -38,109 +37,83 @@ endif()
 
 # Find packages
 find_package(Threads REQUIRED)
-find_package(Boost 1.74 REQUIRED COMPONENTS system filesystem)
+find_package(Boost 1.74 REQUIRED COMPONENTS system filesystem thread)
 find_package(yaml-cpp REQUIRED)
-find_package(Protobuf REQUIRED)
-find_package(prometheus-cpp REQUIRED)
+find_package(prometheus-cpp CONFIG REQUIRED)
+find_package(PkgConfig REQUIRED)
 
-# Find optional packages
-if(ENABLE_CUDA)
-    find_package(CUDAToolkit REQUIRED)
+# Find TBB
+find_package(TBB REQUIRED)
+
+# Find NUMA
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(NUMA REQUIRED numa)
+
+# Find ZeroMQ
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(ZeroMQ REQUIRED libzmq)
+
+# Find WebSocketPP
+find_path(WEBSOCKETPP_INCLUDE_DIR websocketpp/config.hpp)
+
+# Find Google Test (for tests)
+if(BUILD_TESTING)
+    find_package(GTest REQUIRED)
 endif()
 
-if(ENABLE_MKL)
-    find_package(MKL REQUIRED)
+# Find Google Benchmark (for benchmarks)
+if(BUILD_BENCHMARKS)
+    find_package(benchmark REQUIRED)
+endif()
+
+# Find ONNX Runtime
+if(ENABLE_ONNX)
+    find_package(onnxruntime REQUIRED)
 endif()
 
 # Include directories
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+include_directories(${WEBSOCKETPP_INCLUDE_DIR})
 
-# Source files
-set(DARKPOOL_SOURCES
-    src/main.cpp
-    src/config.cpp
-    
-    # Core
-    src/core/detector_impl.cpp
-    src/core/execution_heatmap.cpp
-    src/core/hawkes_process.cpp
-    src/core/hidden_markov_model.cpp
-    src/core/hidden_refill_detector.cpp
-    src/core/order_book_imbalance.cpp
-    src/core/pin_model.cpp
-    src/core/post_trade_drift.cpp
-    src/core/realtime_stream.cpp
-    src/core/slippage_tracker.cpp
-    src/core/trade_clustering.cpp
-    src/core/trade_to_quote_ratio.cpp
-    src/core/vpin_calculator.cpp
-    
-    # ML
-    src/ml/elastic_net.cpp
-    src/ml/feature_engineering.cpp
-    src/ml/inference_engine.cpp
-    src/ml/lstm_autoencoder.cpp
-    src/ml/transformer_model.cpp
-    
-    # Protocols
-    src/protocols/fix_parser.cpp
-    src/protocols/itch_parser.cpp
-    src/protocols/ouch_parser.cpp
-    src/protocols/protocol_normalizer.cpp
-    
-    # Strategies
-    src/strategies/cross_venue_optimizer.cpp
-    src/strategies/dark_pool_strategy.cpp
-    src/strategies/execution_optimizer.cpp
-    
-    # Utils
-    src/utils/cpu_affinity.cpp
-    src/utils/lock_free_queue.cpp
-    src/utils/memory_pool.cpp
-    src/utils/metrics_collector.cpp
-    src/utils/ring_buffer.cpp
-    
-    # Visualization
-    src/visualization/websocket_server.cpp
-)
+# Build subdirectories in dependency order
+add_subdirectory(src/utils)        # No dependencies
+add_subdirectory(src/protocols)    # Depends on utils
+add_subdirectory(src/core)         # Depends on utils, protocols  
+add_subdirectory(src/ml)           # Depends on utils
+add_subdirectory(src/strategies)   # Depends on utils, core
+add_subdirectory(src/visualization) # Depends on utils, core
 
 # Main executable
-add_executable(darkpool_detector ${DARKPOOL_SOURCES})
+add_executable(darkpool_detector src/main.cpp src/config.cpp)
 
 # Link libraries
 target_link_libraries(darkpool_detector
     PRIVATE
-        Threads::Threads
-        Boost::system
-        Boost::filesystem
+        darkpool_core
+        darkpool_ml
+        darkpool_protocols
+        darkpool_strategies
+        darkpool_visualization
+        darkpool_utils
         yaml-cpp
-        ${Protobuf_LIBRARIES}
-        prometheus-cpp::core
-        prometheus-cpp::push
-        numa
-        tbb
-        zmq
-        ssl
-        crypto
-        websocketpp
+        ${ZeroMQ_LIBRARIES}
+        Threads::Threads
 )
 
-if(ENABLE_CUDA)
-    target_link_libraries(darkpool_detector PRIVATE CUDA::cudart CUDA::cublas)
-endif()
-
-if(ENABLE_MKL)
-    target_link_libraries(darkpool_detector PRIVATE MKL::MKL)
-endif()
+# Set properties
+set_target_properties(darkpool_detector PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
 
 # Tests
-if(ENABLE_TESTS)
+if(BUILD_TESTING)
     enable_testing()
+    include(CTest)
     add_subdirectory(tests)
 endif()
 
 # Benchmarks
-if(ENABLE_BENCHMARKS)
+if(BUILD_BENCHMARKS)
     add_subdirectory(benchmarks)
 endif()
 
@@ -148,4 +121,11 @@ endif()
 install(TARGETS darkpool_detector DESTINATION bin)
 install(DIRECTORY include/ DESTINATION include)
 install(DIRECTORY config/ DESTINATION etc/darkpool)
-install(DIRECTORY visualization/ DESTINATION share/darkpool/visualization)
+
+# Package configuration
+include(CPack)
+set(CPACK_PACKAGE_NAME "darkpool-detector")
+set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Jane Street-level Dark Pool Detection System")
+set(CPACK_PACKAGE_VENDOR "DarkPool Technologies")
+set(CPACK_PACKAGING_INSTALL_PREFIX "/opt/darkpool")
