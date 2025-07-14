@@ -1,4 +1,4 @@
-# Dark Pool Detector - Tests
+﻿# Dark Pool Detector - Tests
 include(GoogleTest)
 
 # Find Google Test
@@ -96,3 +96,4 @@ add_test(NAME validate_ml_inference_performance
 set_tests_properties(validate_ml_inference_performance PROPERTIES
     PASS_REGULAR_EXPRESSION "SUCCESS.*P99.*latency.*ms.*meets.*2\\.3ms"
 )
+

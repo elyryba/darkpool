@@ -1,4 +1,4 @@
-# Dark Pool Detector - Benchmarks
+﻿# Dark Pool Detector - Benchmarks
 find_package(benchmark REQUIRED)
 
 # Latency benchmark
@@ -105,3 +105,4 @@ add_test(NAME benchmark_ml_inference_test
          COMMAND benchmark_ml_inference --benchmark_min_time=0.1)
 add_test(NAME benchmark_protocol_parsing_test
          COMMAND benchmark_protocol_parsing --benchmark_min_time=0.1)
+
