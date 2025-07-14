@@ -1,0 +1,3 @@
+﻿---
+Checks: "-*,bugprone-*,performance-*,readability-*,-readability-magic-numbers"
+WarningsAsErrors: ""

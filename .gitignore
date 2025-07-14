@@ -1,0 +1,8 @@
+﻿/build/
+/build-*/
+*.o
+*.a
+*.so
+.vscode/
+CMakeCache.txt
+CMakeFiles/
