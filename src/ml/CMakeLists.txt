@@ -11,9 +11,6 @@ target_include_directories(darkpool_ml PUBLIC
     ${CMAKE_SOURCE_DIR}/include
 )
 
-# Find ONNX Runtime
-
-
 target_link_libraries(darkpool_ml PUBLIC
     darkpool_utils
     
@@ -58,6 +55,7 @@ set_target_properties(darkpool_ml PROPERTIES
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED ON
 )
+
 
 
 
