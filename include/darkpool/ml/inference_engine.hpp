@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "darkpool/types.hpp"
 #include "darkpool/ml/feature_engineering.hpp"
@@ -9,9 +9,9 @@
 #include <unordered_map>
 
 // Forward declarations for ONNX Runtime
-namespace Ort {
-    class Session;
-    class Env;
+// namespace Ort { // Removed for CI
+    // class Session;
+    // class Env;
     class SessionOptions;
     class MemoryInfo;
     class Value;
@@ -212,3 +212,4 @@ InferenceEngine& get_inference_engine();
 bool validate_model_file(const std::string& path) noexcept;
 
 } 
+

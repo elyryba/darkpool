@@ -1,5 +1,5 @@
-#include "darkpool/ml/inference_engine.hpp"
-#include <onnxruntime_cxx_api.h>
+﻿#include "darkpool/ml/inference_engine.hpp"
+// #include <onnxruntime_cxx_api.h> // Removed for CI
 #include <chrono>
 #include <cstring>
 #include <immintrin.h>
@@ -575,3 +575,4 @@ void InferenceEngine::handle_onnx_error(const std::exception& e) noexcept {
 }
 
 } 
+
