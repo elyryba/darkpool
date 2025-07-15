@@ -1,4 +1,4 @@
-#include "darkpool/config.hpp"
+﻿#include "darkpool/config.hpp"
 #include <fstream>
 #include <iostream>
 
