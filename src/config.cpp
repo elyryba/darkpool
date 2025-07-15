@@ -182,33 +182,40 @@ void Config::validate() const {
             throw ConfigException("No symbols configured for " + source.type + " source");
         }
     }
+
     
     // Validate ML configuration
     if (ml.enabled && ml.model_path.empty()) {
         throw ConfigException("ML enabled but no model path specified");
     }
+
     
     if (ml.enabled && !std::filesystem::exists(ml.model_path)) {
         throw ConfigException("ML model file not found: " + ml.model_path);
     }
+
     
     // Validate performance settings
     if (performance.ring_buffer_size & (performance.ring_buffer_size - 1)) {
         throw ConfigException("Ring buffer size must be a power of 2");
     }
+
     
     // Validate detection parameters
     if (tqr.window_size == 0) {
         throw ConfigException("TQR window size must be greater than 0");
     }
+
     
     if (hawkes.decay_rate <= 0 || hawkes.decay_rate >= 1) {
         throw ConfigException("Hawkes decay rate must be between 0 and 1");
     }
+
     
     if (hmm.states < 2) {
         throw ConfigException("HMM must have at least 2 states");
     }
+    
 }
 
 std::unordered_set<std::string> Config::get_all_symbols() const {
