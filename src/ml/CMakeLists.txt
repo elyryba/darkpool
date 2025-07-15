@@ -1,4 +1,4 @@
-# Dark Pool Detector - Machine Learning Library
+﻿# Dark Pool Detector - Machine Learning Library
 add_library(darkpool_ml STATIC
     elastic_net.cpp
     feature_engineering.cpp
@@ -12,11 +12,11 @@ target_include_directories(darkpool_ml PUBLIC
 )
 
 # Find ONNX Runtime
-find_package(onnxruntime REQUIRED)
+
 
 target_link_libraries(darkpool_ml PUBLIC
     darkpool_utils
-    onnxruntime::onnxruntime
+    
     ${TBB_LIBRARIES}
     Threads::Threads
     m  # Math library
@@ -58,3 +58,5 @@ set_target_properties(darkpool_ml PROPERTIES
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED ON
 )
+
+
