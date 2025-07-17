@@ -1,4 +1,4 @@
-# Dark Pool Detector - Utilities Library
+﻿# Dark Pool Detector - Utilities Library
 add_library(darkpool_utils STATIC
     cpu_affinity.cpp
     lock_free_queue.cpp
@@ -13,12 +13,11 @@ target_include_directories(darkpool_utils PUBLIC
 
 # Find required libraries
 find_package(prometheus-cpp REQUIRED)
-find_package(NUMA REQUIRED)
 
 target_link_libraries(darkpool_utils PUBLIC
     prometheus-cpp::core
     prometheus-cpp::push
-    ${NUMA_LIBRARIES}
+    
     Threads::Threads
 )
 
@@ -66,3 +65,4 @@ set_target_properties(darkpool_utils PROPERTIES
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED ON
 )
+
