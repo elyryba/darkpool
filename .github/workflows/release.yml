@@ -1,4 +1,4 @@
-name: Release
+﻿name: Release
 
 on:
   push:
@@ -48,11 +48,11 @@ jobs:
           # Dark Pool Detector ${{ steps.get_version.outputs.version }}
 
           ## Performance Metrics
-          - **Latency**: <500ns end-to-end ✓
-          - **Throughput**: 20M messages/second ✓
-          - **ML Inference**: <2.3ms per batch ✓
-          - **FIX Parsing**: <100ns per message ✓
-          - **ITCH Parsing**: <50ns per message ✓
+          - **Latency**: <500ns end-to-end âœ“
+          - **Throughput**: 20M messages/second âœ“
+          - **ML Inference**: <2.3ms per batch âœ“
+          - **FIX Parsing**: <100ns per message âœ“
+          - **ITCH Parsing**: <50ns per message âœ“
 
           ## Features
           - Zero-allocation hot path
@@ -303,3 +303,4 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: ./docs/html
         destination_dir: ${{ needs.create-release.outputs.version }}
+

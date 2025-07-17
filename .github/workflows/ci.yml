@@ -41,7 +41,6 @@ jobs:
             libgtest-dev \
             libgmock-dev \
             libbenchmark-dev \
-            libonnxruntime-dev \
             libnuma-dev \
             libcurl4-openssl-dev \
             clang-14 \
@@ -188,3 +187,4 @@ jobs:
       - name: Test with sanitizer
         working-directory: build-${{ matrix.sanitizer }}
         run: ctest --output-on-failure --parallel $(nproc)
+
