@@ -176,16 +176,15 @@ void Config::load_performance(const YAML::Node& node) {
 }
 
 
+
 void Config::load_visualization(const YAML::Node& node) {
     visualization.enabled = node["enabled"].as<bool>(true);
     visualization.websocket_port = node["port"].as<uint16_t>(8080);
     visualization.update_frequency_ms = node["update_frequency"].as<size_t>(100);
     visualization.max_clients = node["max_clients"].as<size_t>(10);
-    
     if (node["static_path"]) {
         visualization.static_path = node["static_path"].as<std::string>();
     }
-
 
 }
 
