@@ -1,4 +1,4 @@
-﻿# Dark Pool Detector - Utilities Library
+# Dark Pool Detector - Utilities Library
 add_library(darkpool_utils STATIC
     cpu_affinity.cpp
     lock_free_queue.cpp
@@ -29,7 +29,11 @@ target_compile_options(darkpool_utils PRIVATE
     -ffast-math
     -funroll-loops
     -finline-functions
-    -finline-limit=2000  # Aggressive inlining for lock-free code
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+
+        -finline-limit=2000  # Aggressive inlining for lock-free code
+
+    endif()
     -ftree-vectorize
     -mavx2
     -mfma
@@ -65,4 +69,5 @@ set_target_properties(darkpool_utils PROPERTIES
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED ON
 )
+
 

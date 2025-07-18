@@ -23,7 +23,11 @@ target_compile_options(darkpool_protocols PRIVATE
     -ffast-math
     -funroll-loops
     -finline-functions
-    -finline-limit=1000
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+
+        -finline-limit=1000
+
+    endif()
     -ftree-vectorize
     -mavx2
     -mfma
@@ -52,3 +56,4 @@ set_target_properties(darkpool_protocols PROPERTIES
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED ON
 )
+
