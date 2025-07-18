@@ -186,6 +186,7 @@ void Config::load_visualization(const YAML::Node& node) {
         visualization.static_path = node["static_path"].as<std::string>();
     }
 
+
 }
 
 
@@ -197,6 +198,7 @@ void Config::load_monitoring(const YAML::Node& node) {
     monitoring.metrics_prefix = node["metrics_prefix"].as<std::string>("darkpool_");
     monitoring.metrics_flush_interval_ms = node["metrics_flush_interval_ms"].as<size_t>(1000);
 }
+
 
 
 void Config::validate() const {
