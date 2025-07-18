@@ -1,4 +1,4 @@
-# Dark Pool Detector - Utilities Library
+# Low-level utilities and data structures
 add_library(darkpool_utils STATIC
     cpu_affinity.cpp
     lock_free_queue.cpp
@@ -11,40 +11,28 @@ target_include_directories(darkpool_utils PUBLIC
     ${CMAKE_SOURCE_DIR}/include
 )
 
-# Find required libraries
-find_package(prometheus-cpp REQUIRED)
-
 target_link_libraries(darkpool_utils PUBLIC
-    prometheus-cpp::core
-    prometheus-cpp::push
-    
-    Threads::Threads
+    ${CMAKE_THREAD_LIBS_INIT}
 )
 
-# Lock-free utilities require extreme optimization
+# Conditional compiler flags
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(UTILS_COMPILER_FLAGS -finline-limit=2000)
+endif()
+
 target_compile_options(darkpool_utils PRIVATE
+    ${UTILS_COMPILER_FLAGS}
     -O3
     -march=native
     -mtune=native
     -ffast-math
     -funroll-loops
     -finline-functions
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-
-        -finline-limit=2000  # Aggressive inlining for lock-free code
-
-    endif()
     -ftree-vectorize
     -mavx2
     -mfma
-    -fno-exceptions  # No exceptions in utilities
-    -Wall
-    -Wextra
-    -Wpedantic
-    -Werror
 )
 
-# NUMA and cache optimizations
 target_compile_definitions(darkpool_utils PRIVATE
     CACHE_LINE_SIZE=64
     NUMA_AWARE_ALLOCATION=1
@@ -66,8 +54,4 @@ endif()
 # Export for other modules
 set_target_properties(darkpool_utils PROPERTIES
     POSITION_INDEPENDENT_CODE ON
-    CXX_STANDARD 20
-    CXX_STANDARD_REQUIRED ON
 )
-
-

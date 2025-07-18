@@ -1,4 +1,5 @@
 #include "darkpool/config.hpp"
+#include <unordered_set>
 #include <fstream>
 #include <iostream>
 
@@ -266,4 +267,5 @@ std::unordered_set<std::string> Config::get_all_symbols() const {
 
 
 }  
+
 
