@@ -189,6 +189,8 @@ void Config::load_visualization(const YAML::Node& node) {
 }
 
 
+
+
 void Config::load_monitoring(const YAML::Node& node) {
     monitoring.prometheus_enabled = node["prometheus_enabled"].as<bool>(true);
     monitoring.prometheus_port = node["prometheus_port"].as<uint16_t>(9090);

@@ -18,6 +18,63 @@
 
 namespace darkpool {
 
+// Forward declarations
+struct NetworkConfig;
+struct MLConfig;
+struct TradingConfig;
+struct SystemConfig;
+
+// Configuration management
+class Config {
+public:
+    Config() = default;
+    explicit Config(const std::filesystem::path& config_file);
+    
+    static Config load(const std::filesystem::path& path);
+    void reload();
+    void validate() const;
+    
+    // Config sections
+    struct {
+        std::vector<std::string> sources;
+        std::string multicast_group;
+        int port;
+    } market_data;
+    
+    struct {
+        bool enabled;
+        std::string model_path;
+        int batch_size;
+        float confidence_threshold;
+    } ml;
+    
+    struct {
+        std::string interface;
+        std::string bind_address;
+        uint16_t port;
+        std::string static_path;
+        size_t max_clients;
+    } visualization;
+    
+    struct {
+        bool prometheus_enabled;
+        uint16_t prometheus_port;
+        size_t metrics_flush_interval_ms;
+    } monitoring;
+    
+private:
+    void load_market_data(const YAML::Node& node);
+    void load_ml(const YAML::Node& node);
+    void load_visualization(const YAML::Node& node);
+    void load_monitoring(const YAML::Node& node);
+};
+
+// Config exception
+class ConfigException : public std::runtime_error {
+public:
+    explicit ConfigException(const std::string& msg) : std::runtime_error(msg) {}
+};
+
 // Basic types
 using Price = int64_t;  // Price in 1/10000 of a cent (0.0001 cent precision)
 using Quantity = uint64_t;
@@ -196,4 +253,5 @@ inline const char* to_string(AnomalyType type) {
 }
 
 }
+
 
