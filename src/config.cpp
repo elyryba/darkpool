@@ -188,6 +188,7 @@ void Config::load_visualization(const YAML::Node& node) {
 
 }
 
+
 void Config::load_monitoring(const YAML::Node& node) {
     monitoring.prometheus_enabled = node["prometheus_enabled"].as<bool>(true);
     monitoring.prometheus_port = node["prometheus_port"].as<uint16_t>(9090);
@@ -201,6 +202,7 @@ void Config::validate() const {
     if (market_data_sources.empty()) {
         throw ConfigException("No market data sources configured");
     }
+
     
 
     for (const auto& source : market_data_sources) {
