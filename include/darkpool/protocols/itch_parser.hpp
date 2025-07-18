@@ -1,4 +1,6 @@
 #pragma once
+#include <unordered_map>
+#pragma once
 
 #include <cstring>
 #include <array>
@@ -218,3 +220,4 @@ inline std::optional<MarketMessage> ITCHParser::parse(const uint8_t* buffer, siz
 }
 
 } 
+

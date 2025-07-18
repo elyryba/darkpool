@@ -1,4 +1,6 @@
 #pragma once
+#include <unordered_map>
+#pragma once
 
 #include <cstring>
 #include "darkpool/types.hpp"
@@ -171,3 +173,4 @@ private:
 };
 
 }
+

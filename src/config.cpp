@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 
+
 namespace darkpool {
 
 Config Config::load(const std::filesystem::path& path) {
