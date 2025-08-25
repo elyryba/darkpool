@@ -32,7 +32,7 @@ A quantitative trading system for detecting hidden liquidity and dark pool activ
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/darkpool-detector.git
+git clone https://github.com/elyryba/darkpool-detector.git
 cd darkpool-detector
 
 # Build the project
